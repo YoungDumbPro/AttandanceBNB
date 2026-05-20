@@ -87,14 +87,23 @@ psql -c "CREATE DATABASE attendance_db;"
 
 ### 5. Configure Environment Variables
 
-Edit the `.env` file:
+Copy `.env.example` to `.env` and set your values:
 
 ```env
 FLASK_APP=run.py
 FLASK_ENV=development
+PORT=5000
 SECRET_KEY=your-strong-secret-key-here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/attendance_db
 ```
+
+For Neon PostgreSQL, use the provided connection string. Example:
+
+```env
+DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/<database>?sslmode=require
+```
+
+Do not commit the `.env` file to source control.
 
 ### 6. Initialize Database
 
@@ -164,9 +173,14 @@ sudo systemctl start attendance
 
 ```env
 FLASK_ENV=production
+PORT=8000
 SECRET_KEY=generate-a-strong-random-key
-DATABASE_URL=postgresql://user:password@db-host:5432/attendance_db
+DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/<database>?sslmode=require
 ```
+
+For Neon, use the secure connection string from the Neon console. If the string already contains `sslmode=require`, do not add it again.
+
+In production, `SECRET_KEY` is required and the app will refuse to start if it is missing or uses the default development secret.
 
 ### Docker (Optional)
 

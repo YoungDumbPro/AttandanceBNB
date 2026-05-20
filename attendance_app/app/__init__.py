@@ -8,6 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import config
 
@@ -33,7 +34,9 @@ def create_app(config_name='default'):
         Configured Flask application instance
     """
     app = Flask(__name__)
-    app.config.from_object(config.get(config_name, config['default']))
+    config_obj = config.get(config_name, config['default'])
+    app.config.from_object(config_obj)
+    config_obj.init_app(app)
 
     # Initialize extensions with app
     db.init_app(app)
@@ -54,13 +57,15 @@ def create_app(config_name='default'):
     # Import models for migration support
     from app.models import employee, attendance  # noqa: F401
 
-    # Set up logging for production
+    # Production logging and proxy support
     if not app.debug and not app.testing:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
         _setup_logging(app)
 
-    # Create database tables if they don't exist
-    with app.app_context():
-        db.create_all()
+    # In development and testing, create missing tables automatically.
+    if config_name != 'production':
+        with app.app_context():
+            db.create_all()
 
     return app
 

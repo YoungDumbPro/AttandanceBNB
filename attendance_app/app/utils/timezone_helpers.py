@@ -9,7 +9,7 @@ Supported timezones:
 - America/Denver (USA)
 """
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Supported timezones (IANA names)
 SUPPORTED_TIMEZONES = [
@@ -17,6 +17,30 @@ SUPPORTED_TIMEZONES = [
     'America/Edmonton',
     'America/Denver',
 ]
+
+
+def get_zoneinfo(tz_name):
+    """Return a ZoneInfo object for a timezone name.
+
+    Falls back to UTC if the requested timezone cannot be loaded.
+    """
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo('UTC')
+
+
+def ensure_utc(dt):
+    """Normalize a datetime to UTC.
+
+    If the datetime is naive, assume it is UTC and attach utc tzinfo.
+    If the datetime is aware, convert it to UTC.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def utc_to_local(utc_dt, tz_name):
@@ -32,11 +56,8 @@ def utc_to_local(utc_dt, tz_name):
     if utc_dt is None:
         return None
     
-    # Ensure the datetime is timezone-aware (UTC)
-    if utc_dt.tzinfo is None:
-        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-    
-    local_tz = ZoneInfo(tz_name)
+    utc_dt = ensure_utc(utc_dt)
+    local_tz = get_zoneinfo(tz_name)
     return utc_dt.astimezone(local_tz)
 
 

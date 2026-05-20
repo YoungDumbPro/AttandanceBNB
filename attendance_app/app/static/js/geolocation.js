@@ -9,14 +9,18 @@
  * 
  * @param {string} formId - The ID of the form to submit after getting location.
  */
-function getLocation(formId) {
+function getLocation(event, formId) {
+    event.preventDefault();
+
     const form = document.getElementById(formId);
     const latField = document.getElementById('latitude');
     const lngField = document.getElementById('longitude');
     const submitBtn = document.getElementById('checkin-btn');
 
-    // Prevent default form submission - we'll submit after getting location
-    event.preventDefault();
+    if (!form) {
+        console.warn('Check-in form not found.');
+        return;
+    }
 
     // Show loading state
     if (submitBtn) {

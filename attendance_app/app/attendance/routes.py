@@ -1,6 +1,5 @@
 """Attendance routes for check-in/check-out functionality."""
 from datetime import datetime, timezone, timedelta
-from zoneinfo import ZoneInfo
 
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
@@ -8,6 +7,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.attendance import attendance_bp
 from app.models.attendance import Attendance
+from app.utils.timezone_helpers import ensure_utc, get_zoneinfo
 
 
 @attendance_bp.route('/dashboard')
@@ -15,7 +15,7 @@ from app.models.attendance import Attendance
 def dashboard():
     """Employee attendance dashboard."""
     # Get employee's timezone
-    emp_tz = ZoneInfo(current_user.timezone)
+    emp_tz = get_zoneinfo(current_user.timezone)
     now_local = datetime.now(timezone.utc).astimezone(emp_tz)
     
     # Get today's records in employee's local timezone
@@ -30,12 +30,14 @@ def dashboard():
     # Calculate today's total worked hours
     total_hours_today = 0.0
     for record in today_records:
+        check_in = ensure_utc(record.check_in_utc)
         if record.check_out_utc:
-            delta = record.check_out_utc - record.check_in_utc
+            check_out = ensure_utc(record.check_out_utc)
+            delta = check_out - check_in
             total_hours_today += delta.total_seconds() / 3600
         else:
             # Active session - calculate up to now
-            delta = datetime.now(timezone.utc) - record.check_in_utc
+            delta = datetime.now(timezone.utc) - check_in
             total_hours_today += delta.total_seconds() / 3600
     
     # Check current status

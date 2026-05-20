@@ -1,7 +1,6 @@
 """Admin routes for employee management and reporting."""
 from datetime import datetime, timezone, timedelta
 from functools import wraps
-from zoneinfo import ZoneInfo
 
 from flask import render_template, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
@@ -11,6 +10,7 @@ from app.admin import admin_bp
 from app.models.employee import Employee
 from app.models.attendance import Attendance
 from app.utils.excel_export import generate_excel_report
+from app.utils.timezone_helpers import ensure_utc, get_zoneinfo
 
 
 def admin_required(f):
@@ -52,11 +52,14 @@ def dashboard():
         monthly_hours = 0.0
         for record in monthly_records:
             if record.check_out_utc:
-                delta = record.check_out_utc - record.check_in_utc
+                check_out = ensure_utc(record.check_out_utc)
+                check_in = ensure_utc(record.check_in_utc)
+                delta = check_out - check_in
                 monthly_hours += delta.total_seconds() / 3600
             else:
                 # Active session
-                delta = now - record.check_in_utc
+                check_in = ensure_utc(record.check_in_utc)
+                delta = now - check_in
                 monthly_hours += delta.total_seconds() / 3600
         
         employee_data.append({
@@ -86,7 +89,7 @@ def employee_detail(employee_id):
     ).order_by(Attendance.check_in_utc.desc()).all()
     
     # Get employee timezone for display
-    emp_tz = ZoneInfo(employee.timezone)
+    emp_tz = get_zoneinfo(employee.timezone)
     
     # Calculate summary stats
     total_hours = 0.0
@@ -94,10 +97,13 @@ def employee_detail(employee_id):
     
     for record in records:
         if record.check_out_utc:
-            delta = record.check_out_utc - record.check_in_utc
+            check_out = ensure_utc(record.check_out_utc)
+            check_in = ensure_utc(record.check_in_utc)
+            delta = check_out - check_in
             total_hours += delta.total_seconds() / 3600
         else:
-            delta = datetime.now(timezone.utc) - record.check_in_utc
+            check_in = ensure_utc(record.check_in_utc)
+            delta = datetime.now(timezone.utc) - check_in
             total_hours += delta.total_seconds() / 3600
         
         # Track unique days worked (in employee's timezone)
@@ -131,7 +137,7 @@ def export_employee(employee_id):
     ).order_by(Attendance.check_in_utc.asc()).all()
     
     # Generate Excel file
-    emp_tz = ZoneInfo(employee.timezone)
+    emp_tz = get_zoneinfo(employee.timezone)
     excel_file = generate_excel_report(employee, records, emp_tz)
     
     filename = f"attendance_{employee.username}_{datetime.now().strftime('%Y%m%d')}.xlsx"
